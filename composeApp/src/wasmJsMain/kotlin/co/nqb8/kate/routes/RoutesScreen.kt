@@ -27,7 +27,7 @@ import co.nqb8.kate.data.Service
 
 
 @Composable
-fun RoutesScreen(paddingValues: PaddingValues) {
+fun RoutesScreen(currentQuery: String, paddingValues: PaddingValues) {
     val viewModel = remember { RouteViewModel() }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var selectedRouteForDialog by remember { mutableStateOf<KateRoutes?>(null) }
@@ -39,6 +39,9 @@ fun RoutesScreen(paddingValues: PaddingValues) {
         state.error?.let {
             snackbarHostState.showSnackbar(it)
         }
+    }
+    LaunchedEffect(currentQuery){
+        viewModel.search(currentQuery)
     }
 
 
@@ -72,14 +75,14 @@ fun RoutesScreen(paddingValues: PaddingValues) {
             services = state.services,
             route = selectedRouteForDialog,
             onDismiss = { showAddRouteDialog = false; selectedRouteForDialog = null },
-            onSave = { service, newRoute, authEnabled ->
+            onSave = { routeEdit ->
                 showAddRouteDialog = false
                 if (isEdit && isCreate){
-                    viewModel.addRoute(service, newRoute, authEnabled)
+                    viewModel.addRoute(routeEdit)
                     return@RouteDialog
                 }
                 if (isEdit){
-                    viewModel.updateRoute(service, newRoute.route!!, authEnabled)
+                    viewModel.updateRoute(routeEdit)
                     return@RouteDialog
                 }
             }
@@ -262,12 +265,13 @@ private fun RouteDialog(
     services: List<Service> = listOf(),
     route: KateRoutes? = null,
     onDismiss: () -> Unit = {},
-    onSave: (Service, KateRoutes, Boolean) -> Unit
+    onSave: (RouteEdit) -> Unit
 ) {
     var path by remember { mutableStateOf(route?.path.orEmpty()) }
     val name = remember(path) { transformPath(path)  }
     var method by remember { mutableStateOf(Route.Method(route?.method.orEmpty())) }
-    var selectedService by remember { mutableStateOf<Service?>(null) }
+    var requestBodyType by remember { mutableStateOf(route?.route?.methods?.first()?.requestBodyType) }
+    var selectedService by remember { mutableStateOf<Service?>(getServiceByRoute(services, route)) }
     var authEnabled by remember { mutableStateOf(false) }
 
 
@@ -302,6 +306,13 @@ private fun RouteDialog(
                             isEdit = isEdit,
                             selectedMethod = method,
                             onMethodSelected = { method = it }
+                        )
+                    }
+                    item {
+                        BodyType(
+                            isEdit = isEdit,
+                            selectedType = requestBodyType ?: Route.RequestBodyType.JSON,
+                            onTypeSelected = { requestBodyType = it }
                         )
                     }
                     item {
@@ -341,7 +352,14 @@ private fun RouteDialog(
                         Button(
                             onClick = {
                                 selectedService?.let {
-                                    onSave(it, KateRoutes(path, method.method, route?.route), authEnabled)
+                                    val routeEdit = RouteEdit(
+                                        service = it,
+                                        routes = KateRoutes(path, method.method, route?.route),
+                                        route = route?.route ?: return@Button,
+                                        requestBodyType = requestBodyType ?: return@Button,
+                                        isProtected = authEnabled
+                                    )
+                                    onSave(routeEdit)
                                 }
                             }
                         ) {
@@ -495,7 +513,51 @@ fun AuthDropdown(
     }
 }
 
-private fun getServiceByRoute(services: List<Service>, route: KateRoutes): Service?{
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BodyType(
+    isEdit: Boolean = false,
+    selectedType: Route.RequestBodyType = Route.RequestBodyType.JSON,
+    onTypeSelected: (Route.RequestBodyType) -> Unit
+) {
+    val types = listOf(
+        Route.RequestBodyType.FORM,
+        Route.RequestBodyType.JSON,
+        Route.RequestBodyType.MULTIPART,
+    )
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (isEdit) expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedType.name,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Request Type") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded && isEdit,
+            onDismissRequest = { expanded = false }
+        ) {
+            types.forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(type.name) },
+                    onClick = {
+                        onTypeSelected(type)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun getServiceByRoute(services: List<Service>, route: KateRoutes?): Service?{
+    if (services.isEmpty() || route == null) return null
     return services.find { it.routes.contains(route.route) }
 }
 

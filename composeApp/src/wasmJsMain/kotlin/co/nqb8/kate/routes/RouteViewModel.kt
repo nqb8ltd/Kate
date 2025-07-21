@@ -21,17 +21,17 @@ class RouteViewModel: ViewModel() {
         fetchRoutes()
     }
 
-    fun addRoute(service: Service, routes: KateRoutes, isProtected: Boolean) = viewModelScope.launch {
+    fun addRoute(routeEdit: RouteEdit) = viewModelScope.launch {
         _state.update { it.copy(isLoading = true) }
         val auth = state.value.services.flatMap { it.routes }.first { it.authenticationPolicy != null && it.authenticationPolicy is JwtPolicy }.authenticationPolicy
         val rate = state.value.services.flatMap { it.routes }.first { it.rateLimitPolicy != null }.rateLimitPolicy
-        val body = service.copy(
+        val body = routeEdit.service.copy(
             routes = listOf(
                 Route(
-                    uri = routes.path,
-                    methods = listOf(Route.Method(routes.method)),
+                    uri = routeEdit.routes.path,
+                    methods = listOf(Route.Method(routeEdit.routes.method)),
                     rateLimitPolicy = rate,
-                    authenticationPolicy = if (isProtected) auth else null
+                    authenticationPolicy = if (routeEdit.isProtected) auth else null
                 )
             )
         )
@@ -46,16 +46,22 @@ class RouteViewModel: ViewModel() {
         }.onSuccess {
             fetchRoutes()
         }.onFailure { error ->
-            println("Error: ${error.message}")
             _state.update { it.copy(isLoading = false, error = error.message) }
         }
     }
 
-    fun updateRoute(service: Service, routes: Route, isProtected: Boolean) = viewModelScope.launch {
+    fun updateRoute(routeEdit: RouteEdit) = viewModelScope.launch {
         _state.update { it.copy(isLoading = true) }
         val auth = state.value.services.flatMap { it.routes }.first { it.authenticationPolicy != null && it.authenticationPolicy is JwtPolicy }.authenticationPolicy
-        val body = service.copy(
-            routes = listOf(routes.copy(authenticationPolicy = if (isProtected) auth else null))
+        val body = routeEdit.service.copy(
+            routes = listOf(
+                routeEdit.route.copy(
+                    authenticationPolicy = if (routeEdit.isProtected) auth else null,
+                    methods = listOf(
+                        Route.Method(routeEdit.routes.method, routeEdit.requestBodyType)
+                    ),
+                )
+            )
         )
         println("Update: $body")
         runCatching {
@@ -66,7 +72,6 @@ class RouteViewModel: ViewModel() {
         }.onSuccess {
             fetchRoutes()
         }.onFailure { error ->
-            println("Error: ${error.message}")
             _state.update { it.copy(isLoading = false, error = error.message) }
         }
     }
@@ -81,7 +86,14 @@ class RouteViewModel: ViewModel() {
         }.onFailure { error ->
             _state.update { it.copy(isLoading = false, error = error.message) }
         }.onSuccess {
-            _state.update { state -> state.copy(isLoading = false, data = it.first, services = it.second) }
+            _state.update { state -> state.copy(isLoading = false, data = it.first, original = it.first, services = it.second) }
+        }
+    }
+
+    fun search(currentQuery: String) {
+        viewModelScope.launch {
+            val routes = state.value.original.filter { it.path.contains(currentQuery) }
+            _state.update { it.copy(isLoading = false, data = routes) }
         }
     }
 }

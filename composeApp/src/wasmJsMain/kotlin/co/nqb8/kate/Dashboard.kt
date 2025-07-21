@@ -31,19 +31,22 @@ enum class Dashboard {
 @Composable
 fun DashboardScreen() {
     var currentDashboard by remember { mutableStateOf(Dashboard.HOME) }
+    var currentQuery by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAdminBar(
                 currentDashboard = currentDashboard,
+                currentQuery = currentQuery,
+                onTextChanged = { newQuery -> currentQuery = newQuery },
                 onClick = { currentDashboard = it }
             )
         },
         content = { paddingValues ->
             when(currentDashboard){
                 Dashboard.HOME -> HomeScreen(paddingValues)
-                Dashboard.ROUTES -> RoutesScreen(paddingValues)
+                Dashboard.ROUTES -> RoutesScreen(currentQuery, paddingValues)
                 Dashboard.TRACES -> TracesScreen(paddingValues)
                 Dashboard.ANALYTICS -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary))
             }
@@ -56,6 +59,8 @@ fun DashboardScreen() {
 @Composable
 private fun TopAdminBar(
     currentDashboard: Dashboard,
+    currentQuery: String,
+    onTextChanged: (String) -> Unit,
     onClick: (Dashboard) -> Unit
 ) {
     TopAppBar(
@@ -81,7 +86,7 @@ private fun TopAdminBar(
                 onClick = onClick
             )
             Spacer(modifier = Modifier.weight(1f))
-            SearchBar()
+            SearchBar(currentQuery = currentQuery, onTextChanged = onTextChanged)
             Spacer(modifier = Modifier.width(16.dp))
             Icon(
                 imageVector = Icons.Default.Notifications,
@@ -171,10 +176,14 @@ private fun NavItem(
 }
 
 @Composable
-private fun SearchBar() {
+private fun SearchBar(
+    currentQuery: String,
+    onTextChanged: (String) -> Unit
+) {
+
     TextField(
-        value = "",
-        onValueChange = {},
+        value = currentQuery,
+        onValueChange = {  onTextChanged(it) },
         placeholder = { Text("Search") },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon") },
         shape = RoundedCornerShape(8.dp),

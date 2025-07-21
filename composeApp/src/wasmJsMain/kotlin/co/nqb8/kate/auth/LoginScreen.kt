@@ -123,7 +123,7 @@ fun WelcomeText() {
 
 @Composable
 private fun LoginForm(state: LoginState, onLogin: (String, String) -> Unit) {
-    var email by remember { mutableStateOf("admin@kate.co") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
