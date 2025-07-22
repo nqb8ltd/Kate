@@ -355,7 +355,7 @@ private fun RouteDialog(
                                     val routeEdit = RouteEdit(
                                         service = it,
                                         routes = KateRoutes(path, method.method, route?.route),
-                                        route = route?.route ?: return@Button,
+                                        route = route?.route ?: Route(uri = ""),
                                         requestBodyType = requestBodyType ?: return@Button,
                                         isProtected = authEnabled
                                     )

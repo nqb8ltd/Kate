@@ -29,7 +29,7 @@ class RouteViewModel: ViewModel() {
             routes = listOf(
                 Route(
                     uri = routeEdit.routes.path,
-                    methods = listOf(Route.Method(routeEdit.routes.method)),
+                    methods = listOf(Route.Method(routeEdit.routes.method, routeEdit.requestBodyType)),
                     rateLimitPolicy = rate,
                     authenticationPolicy = if (routeEdit.isProtected) auth else null
                 )
@@ -93,7 +93,7 @@ class RouteViewModel: ViewModel() {
     fun search(currentQuery: String) {
         viewModelScope.launch {
             val routes = state.value.original.filter { it.path.contains(currentQuery) }
-            _state.update { it.copy(isLoading = false, data = routes) }
+            _state.update { it.copy(data = routes) }
         }
     }
 }
