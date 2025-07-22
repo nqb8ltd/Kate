@@ -25,13 +25,14 @@ class RouteViewModel: ViewModel() {
         _state.update { it.copy(isLoading = true) }
         val auth = state.value.services.flatMap { it.routes }.first { it.authenticationPolicy != null && it.authenticationPolicy is JwtPolicy }.authenticationPolicy
         val rate = state.value.services.flatMap { it.routes }.first { it.rateLimitPolicy != null }.rateLimitPolicy
+        val authPolicy = (auth as? JwtPolicy)?.copy(check = "", checkPath = "")
         val body = routeEdit.service.copy(
             routes = listOf(
                 Route(
                     uri = routeEdit.routes.path,
                     methods = listOf(Route.Method(routeEdit.routes.method, routeEdit.requestBodyType)),
                     rateLimitPolicy = rate,
-                    authenticationPolicy = if (routeEdit.isProtected) auth else null
+                    authenticationPolicy = if (routeEdit.isProtected) authPolicy else null
                 )
             )
         )
